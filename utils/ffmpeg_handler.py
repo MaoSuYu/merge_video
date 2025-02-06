@@ -1,11 +1,12 @@
 import os
 import subprocess
 import json
-from datetime import datetime
+from typing import Dict, List, Optional
 from .logger import logger
 from .progress import ProgressBar
+from .video_info import VideoInfo
 
-def check_ffmpeg():
+def check_ffmpeg() -> bool:
     """检查系统是否安装了ffmpeg"""
     try:
         subprocess.run(['ffmpeg', '-version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -15,20 +16,21 @@ def check_ffmpeg():
         logger.error("未找到FFmpeg,请确保系统已安装FFmpeg")
         return False
 
-def get_video_duration(video_path):
-    """获取单个视频的时长"""
+def get_video_duration(video_path: str) -> float:
+    """获取视频时长"""
     cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', 
            '-of', 'default=noprint_wrappers=1:nokey=1', video_path]
     try:
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        duration = float(result.stdout)
-        return duration
-    except:
-        logger.error(f"无法获取视频 {video_path} 的时长")
-        return 0
+        if result.returncode != 0:
+            raise Exception(f"ffprobe执行失败: {result.stderr}")
+        return float(result.stdout)
+    except Exception as e:
+        logger.error(f"无法获取视频时长: {str(e)}")
+        raise
 
-def get_video_codec_info(video_path):
-    """获取视频的编码信息"""
+def get_video_codec_info(video_path: str) -> Optional[Dict]:
+    """获取视频编码信息"""
     cmd = [
         'ffprobe', 
         '-v', 'quiet',
@@ -39,48 +41,32 @@ def get_video_codec_info(video_path):
     ]
     try:
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if result.returncode != 0:
+            raise Exception(f"ffprobe执行失败: {result.stderr}")
+        
         data = json.loads(result.stdout)
-        if 'streams' in data and len(data['streams']) > 0:
-            stream = data['streams'][0]
-            return {
-                'codec': stream.get('codec_name', 'unknown').upper(),
-                'width': stream.get('width', 0),
-                'height': stream.get('height', 0),
-                'bitrate': int(stream.get('bit_rate', 0)) // 1000,  # 转换为kbps
-                'fps': round(eval(stream.get('r_frame_rate', '0/1')), 2)  # 处理帧率格式(e.g., '30000/1001')
-            }
+        if 'streams' not in data or not data['streams']:
+            raise Exception("未找到视频流信息")
+        
+        stream = data['streams'][0]
+        return {
+            'codec': stream.get('codec_name', 'unknown').upper(),
+            'width': stream.get('width', 0),
+            'height': stream.get('height', 0),
+            'bitrate': int(stream.get('bit_rate', 0)) // 1000,  # 转换为kbps
+            'fps': round(eval(stream.get('r_frame_rate', '0/1')), 2)  # 处理帧率格式(e.g., '30000/1001')
+        }
     except Exception as e:
-        logger.error(f"无法获取视频 {video_path} 的编码信息: {str(e)}")
-    return None
+        logger.error(f"无法获取视频编码信息: {str(e)}")
+        raise
 
-def format_duration(seconds):
-    """将秒数转换为时分秒格式"""
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    seconds = int(seconds % 60)
-    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-
-def get_total_duration(video_files):
-    """获取所有视频的总时长"""
-    total_duration = 0
-    for video in video_files:
-        duration = get_video_duration(f'video/{video}')
-        total_duration += duration
-    return total_duration
-
-def merge_videos(video_files, concat_file='concat.txt', output_file=None):
+def merge_videos(videos: List[VideoInfo], concat_file: str, output_file: str) -> bool:
     """合并视频文件"""
-    if not video_files:
+    if not check_ffmpeg():
         return False
-    
-    if output_file is None:
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        output_file = os.path.join('output', f'merged_{timestamp}.mp4')
     
     # 获取总时长用于进度条
-    total_duration = get_total_duration(video_files)
-    if total_duration == 0:
-        return False
+    total_duration = sum(v.duration for v in videos)
     
     # 合并命令
     cmd = [
@@ -105,43 +91,43 @@ def merge_videos(video_files, concat_file='concat.txt', output_file=None):
             output = process.stderr.readline()
             if output == '' and process.poll() is not None:
                 break
-            if output and "time=" in output:
-                time_str = output.split("time=")[1].split()[0]
-                progress_bar.update(time_str)
+            if output:
+                if "time=" in output:
+                    time_str = output.split("time=")[1].split()[0]
+                    progress_bar.update(time_str)
+                elif "error" in output.lower():
+                    logger.error(f"FFmpeg错误: {output.strip()}")
         
         progress_bar.close()
         process.wait()
         
-        if process.returncode == 0:
-            logger.info(f"视频合并完成: {output_file}")
-            return True
-        else:
-            logger.error("视频合并失败")
+        if process.returncode != 0:
+            stderr = process.stderr.read()
+            logger.error(f"FFmpeg执行失败: {stderr}")
             return False
+            
+        return True
             
     except Exception as e:
         logger.error(f"合并过程出错: {str(e)}")
         return False
 
-def verify_output(output_file=None):
+def verify_output(output_file: str) -> bool:
     """验证输出文件"""
-    if output_file is None:
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        output_file = os.path.join('output', f'merged_{timestamp}.mp4')
-    
     if not os.path.exists(output_file):
         logger.error("输出文件不存在")
         return False
     
     try:
         cmd = ['ffprobe', output_file]
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if result.returncode == 0:
-            logger.info("输出文件验证通过")
-            return True
-        else:
-            logger.error("输出文件验证失败")
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if result.returncode != 0:
+            logger.error(f"输出文件验证失败: {result.stderr}")
             return False
+        
+        logger.info("输出文件验证通过")
+        return True
+        
     except Exception as e:
         logger.error(f"验证过程出错: {str(e)}")
         return False

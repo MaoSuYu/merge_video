@@ -6,13 +6,16 @@
 
 ```
 merge_video/
-├── main.py              # 主程序入口
-├── utils/              # 工具模块目录
-│   ├── __init__.py     # 模块初始化文件
-│   ├── logger.py       # 日志配置模块
-│   ├── file_handler.py # 文件处理模块
-│   ├── ffmpeg_handler.py # FFmpeg操作模块
-│   └── progress.py     # 进度条模块
+├── utils/             # 工具模块
+│   ├── __init__.py
+│   ├── logger.py     # 日志配置
+│   ├── progress.py   # 进度条
+│   ├── video_info.py # 视频信息模型
+│   ├── video_processor.py # 视频处理
+│   ├── merger.py     # 视频合并
+│   ├── file_handler.py    # 文件处理
+│   └── ffmpeg_handler.py  # FFmpeg操作
+└── main.py           # 命令行入口
 ```
 
 ## 环境配置
@@ -42,7 +45,7 @@ pip install tqdm
 ```bash
 python main.py
 ```
-4. 根据提示输入合并后的视频文件名(直接回车将使用时间戳命名)
+4. 输入合并后的视频文件名(直接回车将使用时间戳命名)
 5. 合并后的视频将保存在output目录下
 6. 详细的操作日志将保存在video_merge.log文件中,包含:
    - 视频排序信息
@@ -62,3 +65,4 @@ python main.py
 - 显示每个视频的详细时长信息
 - 显示每个视频的编码信息(编码、分辨率、码率、帧率)
 - 默认使用时间戳命名(格式: YYYYMMDD_HHMMSS)
+- 当只有一个视频文件时拒绝合并

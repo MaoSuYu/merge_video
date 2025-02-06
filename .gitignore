@@ -38,7 +38,7 @@ output/
 video/*
 !video/.gitkeep
 *.log
-concat.txt
+temp_concat.txt
 
 # VS Code
 .vscode/
