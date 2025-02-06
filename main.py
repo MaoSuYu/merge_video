@@ -9,6 +9,22 @@ from utils import (
     merge_videos,
     verify_output
 )
+import os
+from datetime import datetime
+
+def get_output_filename():
+    """获取输出文件名"""
+    filename = input("请输入合并后的视频文件名(直接回车将使用时间戳): ").strip()
+    
+    if not filename:
+        # 使用时间戳作为默认文件名
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'merged_{timestamp}.mp4'
+    elif not filename.endswith('.mp4'):
+        # 确保文件名以.mp4结尾
+        filename = f'{filename}.mp4'
+    
+    return os.path.join('output', filename)
 
 def main():
     """主函数"""
@@ -27,12 +43,14 @@ def main():
     if not video_files:
         return
     
+    # 获取输出文件名
+    output_file = get_output_filename()
+    
     # 创建concat文件
     create_concat_file(video_files)
     
     try:
         # 合并视频
-        output_file = 'output/merged_output.mp4'
         if merge_videos(video_files, output_file=output_file):
             # 验证输出
             verify_output(output_file)

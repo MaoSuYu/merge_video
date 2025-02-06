@@ -1,5 +1,6 @@
 import os
 from .logger import logger
+from .ffmpeg_handler import get_video_duration, format_duration, get_video_codec_info
 
 def create_video_dir():
     """创建video目录"""
@@ -41,7 +42,26 @@ def get_video_files():
         video_files.sort()
         logger.info("检测到非数字命名,按文件名排序")
     
-    logger.info(f"找到{len(video_files)}个视频文件: {video_files}")
+    # 获取并显示每个视频的信息
+    logger.info("视频文件列表:")
+    for i, video in enumerate(video_files, 1):
+        video_path = f'video/{video}'
+        # 获取时长
+        duration = get_video_duration(video_path)
+        duration_str = format_duration(duration)
+        
+        # 获取编码信息
+        codec_info = get_video_codec_info(video_path)
+        
+        # 打印视频信息
+        logger.info(f"[视频{i}/{len(video_files)}] {video}")
+        logger.info(f"    时长: {duration_str}")
+        if codec_info:
+            logger.info(f"    编码: {codec_info['codec']} {codec_info['width']}x{codec_info['height']} "
+                       f"{codec_info['bitrate']}kbps {codec_info['fps']}fps")
+        else:
+            logger.info("    编码信息获取失败")
+    
     return video_files
 
 def create_concat_file(video_files):
