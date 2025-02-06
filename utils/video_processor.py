@@ -27,9 +27,14 @@ def get_video_info(file_path: str, filename: str) -> Optional[VideoInfo]:
             path=file_path
         )
         
-        logger.info(f"添加视频: {filename}")
-        logger.info(f"    时长: {video_info.duration_str}")
-        logger.info(f"    编码: {video_info.info_str}")
+        # 记录视频信息
+        logger.info(f"[{filename}]")
+        logger.info(f"  时长: {video_info.duration_str}")
+        logger.info(f"  编码: {video_info.codec}")
+        logger.info(f"  分辨率: {video_info.resolution}")
+        logger.info(f"  码率: {video_info.bitrate}kbps")
+        logger.info(f"  帧率: {video_info.fps}fps")
+        
         return video_info
             
     except Exception as e:
@@ -50,17 +55,25 @@ def get_sorted_videos(directory: str) -> List[VideoInfo]:
     # 排序文件
     if all_numeric:
         video_files.sort(key=lambda x: int(x.split('.')[0]))
-        logger.info("检测到纯数字命名,按序号排序")
+        logger.info("按数字序号排序")
     else:
         video_files.sort()
-        logger.info("检测到非数字命名,按文件名排序")
+        logger.info("按文件名排序")
     
     # 获取视频信息
     videos: List[VideoInfo] = []
+    logger.info("\n视频文件列表:")
     for video in video_files:
         video_path = os.path.join(directory, video)
         video_info = get_video_info(video_path, video)
         if video_info:
             videos.append(video_info)
+    
+    if videos:
+        total_duration = sum(v.duration for v in videos)
+        hours = int(total_duration // 3600)
+        minutes = int((total_duration % 3600) // 60)
+        seconds = int(total_duration % 60)
+        logger.info(f"\n总时长: {hours:02d}:{minutes:02d}:{seconds:02d}")
     
     return videos

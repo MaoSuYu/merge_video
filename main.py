@@ -5,7 +5,7 @@ from utils.merger import merge_video_files
 
 def main():
     """主函数"""
-    logger.info("开始视频合并任务")
+    logger.info("视频合并工具")
     
     # 确保目录存在
     os.makedirs('video', exist_ok=True)
@@ -17,12 +17,10 @@ def main():
         return
     
     # 获取输出文件名
-    output_name = input("请输入合并后的视频文件名(直接回车将使用时间戳): ").strip()
+    output_name = input("\n请输入合并后的文件名(直接回车使用时间戳): ").strip()
     
     # 合并视频
     merge_video_files(videos, output_name)
-    
-    logger.info("任务结束")
 
 if __name__ == "__main__":
     main()

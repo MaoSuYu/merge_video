@@ -24,6 +24,7 @@ def merge_video_files(videos: List[VideoInfo], output_name: Optional[str] = None
         output_name += '.mp4'
     
     output_path = os.path.join('output', output_name)
+    logger.info(f"\n输出文件: {output_name}")
     
     # 在当前目录创建临时文件
     concat_file = 'temp_concat.txt'
@@ -33,11 +34,13 @@ def merge_video_files(videos: List[VideoInfo], output_name: Optional[str] = None
             for video in videos:
                 f.write(f"file '{video.path}'\n")
         
+        logger.info("开始合并...")
         # 合并视频
         if merge_videos(videos, concat_file, output_path):
             # 验证输出
             if verify_output(output_path):
-                logger.info(f"合并完成: {output_path}")
+                file_size = os.path.getsize(output_path) / (1024 * 1024)  # 转换为MB
+                logger.info(f"合并完成 ({file_size:.1f}MB)")
                 return output_path
             else:
                 logger.error("输出文件验证失败")
